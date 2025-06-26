@@ -25,6 +25,8 @@ from magic_pdf.data.data_reader_writer import FileBasedDataWriter
 from parse import single_task_recognition, parse_pdf
 import uvicorn
 
+from tools.upload_to_s3 import *
+
 # Response models
 class TaskResponse(BaseModel):
     success: bool
@@ -76,7 +78,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-temp_dir = "/app/tmp"
+temp_dir = "/workspace/MonkeyOCR/app/temp"
 os.makedirs(temp_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=temp_dir), name="static")
 
@@ -217,6 +219,36 @@ async def download_file(filename: str):
         media_type='application/octet-stream'
     )
 
+@app.post("/logs/upload")
+async def upload_logs_to_AWS_S3():
+    try:
+        os.makedirs(os.environ["LOG_FOLDER_PATH"], exist_ok = True)
+        zip_folder(os.environ["LOG_FOLDER_PATH"], os.environ["OUTPUT_ZIP_FILE_PATH"])
+        upload_file_to_s3(os.environ["OUTPUT_ZIP_FILE_PATH"])
+        
+        delete_files_in_directory(os.environ["LOG_FOLDER_PATH"])
+    
+    except Exception as e:
+        return TaskResponse(
+            success=False,
+            task_type="Log",
+            content="",
+            message=f"OCR task failed: {str(e)}"
+        )
+
+    
+    return TaskResponse(
+            success=True,
+            task_type="Log",
+            content="",
+            message=f"log files uploaded to AWS S3"
+        )
+
+
+
+
+
+
 @app.get("/results/{task_id}")
 async def get_results(task_id: str):
     """Get parsing results by task ID"""
@@ -249,21 +281,30 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             )
         
         # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
-            content = await file.read()
-            temp_file.write(content)
-            temp_file_path = temp_file.name
-        
+        # with tempfile.NamedTemporaryFile(delete=False, prefix = Path(file.filename).stem, suffix=file_ext) as temp_file:
+        #     content = await file.read()
+        #     temp_file.write(content)
+        #     temp_file_path = temp_file.name
+
+        print("before running")
+        upload_file_dir = os.environ["UPLOAD_FOLDER_PATH"]
+        os.makedirs(upload_file_dir, exist_ok = True)
+        filename = generate_log_filename(file.filename)
+        upload_file_path = os.path.join(upload_file_dir, filename)
+        content = await file.read()
+        with open(upload_file_path, "wb") as f:
+            f.write(content)
+        print("hello world")
         try:
             # Create output directory
-            output_dir = tempfile.mkdtemp(prefix=f"monkeyocr_{task_type}_")
+            output_dir = os.environ["LOG_FOLDER_PATH"]
             
             # Run OCR task in thread pool
             loop = asyncio.get_event_loop()
             result_dir = await loop.run_in_executor(
                 executor,
                 single_task_recognition,
-                temp_file_path,
+                upload_file_path,
                 output_dir,
                 monkey_ocr_model,
                 task_type
@@ -287,7 +328,8 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             
         finally:
             # Clean up temporary file
-            os.unlink(temp_file_path)
+            #os.unlink(temp_file_path)
+            pass
             
     except Exception as e:
         return TaskResponse(
@@ -298,4 +340,4 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
         )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7861)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
