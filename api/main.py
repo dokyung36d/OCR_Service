@@ -26,6 +26,8 @@ from parse import single_task_recognition, parse_pdf
 import uvicorn
 
 from tools.aws_s3 import *
+class S3Request(BaseModel):
+    s3_url: str  # 또는 HttpUrl, but S3는 형식이 좀 달라서 str 추천
 
 # Response models
 class TaskResponse(BaseModel):
@@ -98,10 +100,23 @@ async def extract_text(file: UploadFile = File(...)):
     """Extract text from image or PDF"""
     return await perform_ocr_task(file, "text")
 
-# @app.post("/ocr/text/aws_s3_url")
-# async def extract_text_from_aws_s3_url(request) {
+@app.post("/ocr/text/s3_url")
+async def extract_text_from_s3(request : S3Request):
+    try : 
+        file_bytes = download_file_from_s3(request.s3_url)
+        fake_upload = UploadFile(filename="from_s3.pdf", file=io.BytesIO(file_bytes))
+    
+    except Exception as e:
+        return TaskResponse(
+            success=False,
+            task_type="text",
+            content="",
+            message=f"Error occurred: {type(e).__name__} - {e}"
+        )
 
-# }
+    # 기존의 OCR 로직 재사용
+    return await perform_ocr_task(fake_upload, "text")
+    
 
 @app.post("/ocr/formula", response_model=TaskResponse)
 async def extract_formula(file: UploadFile = File(...)):

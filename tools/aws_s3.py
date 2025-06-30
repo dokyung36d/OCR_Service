@@ -42,7 +42,7 @@ def download_file_from_s3(s3_url: str) -> bytes:
     _, path = s3_url.split("s3://", 1)
     bucket, key = path.split("/", 1)
 
-    s3 = boto3.client('s3')
+    s3 = get_s3_client()
     response = s3.get_object(Bucket=bucket, Key=key)
     return response['Body'].read()
 
