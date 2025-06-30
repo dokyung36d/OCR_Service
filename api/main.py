@@ -25,7 +25,7 @@ from magic_pdf.data.data_reader_writer import FileBasedDataWriter
 from parse import single_task_recognition, parse_pdf
 import uvicorn
 
-from tools.upload_to_s3 import *
+from tools.aws_s3 import *
 
 # Response models
 class TaskResponse(BaseModel):
@@ -42,7 +42,8 @@ class ParseResponse(BaseModel):
     download_url: Optional[str] = None
 
 # Global model instance
-monkey_ocr_model = None
+monkey_ocr_model = MonkeyOCR("model_configs_quantized.yaml")
+# monkey_ocr_model = None
 executor = ThreadPoolExecutor(max_workers=2)
 
 def initialize_model():
@@ -96,6 +97,11 @@ async def health_check():
 async def extract_text(file: UploadFile = File(...)):
     """Extract text from image or PDF"""
     return await perform_ocr_task(file, "text")
+
+# @app.post("/ocr/text/aws_s3_url")
+# async def extract_text_from_aws_s3_url(request) {
+
+# }
 
 @app.post("/ocr/formula", response_model=TaskResponse)
 async def extract_formula(file: UploadFile = File(...)):

@@ -53,6 +53,7 @@ _build/
 output/
 build/
 model_weight
+model_weight_quantized
 
 set_aws_env.sh
 pdf/*

@@ -34,6 +34,19 @@ def upload_file_to_s3(file_path):
         Key = log_filename
     )
 
+def download_file_from_s3(s3_url: str) -> bytes:
+    # s3://bucket/key 형식 처리
+    if not s3_url.startswith("s3://"):
+        raise ValueError("Invalid S3 URL format")
+
+    _, path = s3_url.split("s3://", 1)
+    bucket, key = path.split("/", 1)
+
+    s3 = boto3.client('s3')
+    response = s3.get_object(Bucket=bucket, Key=key)
+    return response['Body'].read()
+
+
 
 def delete_files_in_directory(folder_path: str):
     if not os.path.isdir(folder_path):

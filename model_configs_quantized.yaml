@@ -1,0 +1,19 @@
+device: cuda # cuda / cpu / mps (using `transformers` as backend)
+weights:
+  doclayout_yolo: Structure/doclayout_yolo_docstructbench_imgsz1280_2501.pt # or Structure/layout_zh.pt
+  layoutreader: Relation
+models_dir: model_weight_quantized
+layout_config: 
+  model: doclayout_yolo
+  reader:
+    name: layoutreader
+chat_config:
+  weight_path: model_weight_quantized/Recognition
+  backend: lmdeploy # lmdeploy / vllm / transformers / api
+  batch_size: 10 # active when using `transformers` as backend
+
+# Uncomment the following lines if use `api` as backend 
+# api_config:
+#   url: https://api.openai.com/v1
+#   model_name: gpt-4.1
+#   api_key: sk-xxx
