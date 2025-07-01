@@ -6,7 +6,7 @@ MonkeyOCR FastAPI Application
 import os
 import io
 import tempfile
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pathlib import Path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -26,6 +26,8 @@ from parse import single_task_recognition, parse_pdf
 import uvicorn
 
 from tools.aws_s3 import *
+import yaml, json
+
 class S3Request(BaseModel):
     s3_url: str  # 또는 HttpUrl, but S3는 형식이 좀 달라서 str 추천
 
@@ -35,6 +37,7 @@ class TaskResponse(BaseModel):
     task_type: str
     content: str
     message: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
 
 class ParseResponse(BaseModel):
     success: bool
@@ -44,7 +47,7 @@ class ParseResponse(BaseModel):
     download_url: Optional[str] = None
 
 # Global model instance
-monkey_ocr_model = MonkeyOCR("model_configs_quantized.yaml")
+monkey_ocr_model = MonkeyOCR(os.environ["MONKEYOCR_CONFIG_FILE_PATH"])
 # monkey_ocr_model = None
 executor = ThreadPoolExecutor(max_workers=2)
 
@@ -52,7 +55,7 @@ def initialize_model():
     """Initialize MonkeyOCR model"""
     global monkey_ocr_model
     if monkey_ocr_model is None:
-        config_path = os.getenv("MONKEYOCR_CONFIG", "model_configs.yaml")
+        config_path = os.getenv("MONKEYOCR_CONFIG_FILE_PATH", "model_configs.yaml")
         monkey_ocr_model = MonkeyOCR(config_path)
     return monkey_ocr_model
 
@@ -315,7 +318,7 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
         content = await file.read()
         with open(upload_file_path, "wb") as f:
             f.write(content)
-        print("hello world")
+
         try:
             # Create output directory
             output_dir = os.environ["LOG_FOLDER_PATH"]
@@ -339,12 +342,16 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             result_file_path = os.path.join(result_dir, result_files[0])
             with open(result_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
+
+            with open(os.environ["MONKEYOCR_CONFIG_FILE_PATH"], "r") as f:
+                config_dict = yaml.safe_load(f)
             
             return TaskResponse(
                 success=True,
                 task_type=task_type,
                 content=content,
-                message=f"{task_type.capitalize()} extraction completed successfully"
+                message=f"{task_type.capitalize()} extraction completed successfully",
+                config=config_dict
             )
             
         finally:
