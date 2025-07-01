@@ -305,30 +305,30 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             )
         
         # Save uploaded file temporarily
-        # with tempfile.NamedTemporaryFile(delete=False, prefix = Path(file.filename).stem, suffix=file_ext) as temp_file:
-        #     content = await file.read()
-        #     temp_file.write(content)
-        #     temp_file_path = temp_file.name
+        with tempfile.NamedTemporaryFile(delete=False, prefix = Path(file.filename).stem, suffix=file_ext) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
 
-        print("before running")
-        upload_file_dir = os.environ["UPLOAD_FOLDER_PATH"]
-        os.makedirs(upload_file_dir, exist_ok = True)
-        filename = generate_log_filename(file.filename)
-        upload_file_path = os.path.join(upload_file_dir, filename)
-        content = await file.read()
-        with open(upload_file_path, "wb") as f:
-            f.write(content)
+        # print("before running")
+        # upload_file_dir = os.environ["UPLOAD_FOLDER_PATH"]
+        # os.makedirs(upload_file_dir, exist_ok = True)
+        # filename = generate_log_filename(file.filename)
+        # upload_file_path = os.path.join(upload_file_dir, filename)
+        # content = await file.read()
+        # with open(upload_file_path, "wb") as f:
+        #     f.write(content)
 
         try:
             # Create output directory
-            output_dir = os.environ["LOG_FOLDER_PATH"]
+            output_dir = tempfile.mkdtemp(prefix=f"monkeyocr_{task_type}_")
             
             # Run OCR task in thread pool
             loop = asyncio.get_event_loop()
             result_dir = await loop.run_in_executor(
                 executor,
                 single_task_recognition,
-                upload_file_path,
+                temp_file_path,
                 output_dir,
                 monkey_ocr_model,
                 task_type
@@ -356,8 +356,7 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             
         finally:
             # Clean up temporary file
-            #os.unlink(temp_file_path)
-            pass
+            os.unlink(temp_file_path)
             
     except Exception as e:
         return TaskResponse(
