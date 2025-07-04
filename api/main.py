@@ -37,7 +37,7 @@ class TaskResponse(BaseModel):
     task_type: str
     content: str
     message: Optional[str] = None
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[str] = None
 
 class ParseResponse(BaseModel):
     success: bool
@@ -343,15 +343,15 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             with open(result_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            with open(os.environ["MONKEYOCR_CONFIG_FILE_PATH"], "r") as f:
-                config_dict = yaml.safe_load(f)
+            # with open(os.environ["MONKEYOCR_CONFIG_FILE_PATH"], "r") as f:
+            #     config_dict = yaml.safe_load(f)
             
             return TaskResponse(
                 success=True,
                 task_type=task_type,
                 content=content,
                 message=f"{task_type.capitalize()} extraction completed successfully",
-                config=config_dict
+                config=os.path.basename(os.environ["MONKEYOCR_CONFIG_FILE_PATH"])
             )
             
         finally:
