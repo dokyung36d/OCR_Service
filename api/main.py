@@ -25,6 +25,7 @@ from magic_pdf.data.data_reader_writer import FileBasedDataWriter
 from parse import single_task_recognition, parse_pdf
 import uvicorn
 
+import torch
 from tools.aws_s3 import *
 import yaml, json
 import time
@@ -40,6 +41,7 @@ class TaskResponse(BaseModel):
     message: Optional[str] = None
     config: Optional[str] = None
     inference_time_sec: Optional[float] = None
+    max_gpu_memory_gb: Optional[float] = None
 
 class ParseResponse(BaseModel):
     success: bool
@@ -327,6 +329,7 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             
 
             start_time = time.time()
+            torch.cuda.reset_peak_memory_stats()
             # Run OCR task in thread pool
             loop = asyncio.get_event_loop()
             result_dir = await loop.run_in_executor(
@@ -339,6 +342,9 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             )
             end_time = time.time()
             inference_time = end_time - start_time
+
+            max_memory = torch.cuda.max_memory_allocated()
+            max_memory_gb = max_memory / (1024 ** 3)
             
             # Read result file
             result_files = [f for f in os.listdir(result_dir) if f.endswith(f'_{task_type}_result.md')]
@@ -358,7 +364,8 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
                 content=content,
                 message=f"{task_type.capitalize()} extraction completed successfully",
                 config=os.path.basename(os.environ["MONKEYOCR_CONFIG_FILE_PATH"]),
-                inference_time_sec = inference_time
+                inference_time_sec = inference_time,
+                max_gpu_memory_gb = max_memory_gb
             )
             
         finally:
