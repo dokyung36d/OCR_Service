@@ -27,6 +27,7 @@ import uvicorn
 
 from tools.aws_s3 import *
 import yaml, json
+import time
 
 class S3Request(BaseModel):
     s3_url: str  # 또는 HttpUrl, but S3는 형식이 좀 달라서 str 추천
@@ -38,6 +39,7 @@ class TaskResponse(BaseModel):
     content: str
     message: Optional[str] = None
     config: Optional[str] = None
+    inference_time_sec: Optional[float] = None
 
 class ParseResponse(BaseModel):
     success: bool
@@ -323,6 +325,8 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
             # Create output directory
             output_dir = tempfile.mkdtemp(prefix=f"monkeyocr_{task_type}_")
             
+
+            start_time = time.time()
             # Run OCR task in thread pool
             loop = asyncio.get_event_loop()
             result_dir = await loop.run_in_executor(
@@ -333,6 +337,8 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
                 monkey_ocr_model,
                 task_type
             )
+            end_time = time.time()
+            inference_time = end_time - start_time
             
             # Read result file
             result_files = [f for f in os.listdir(result_dir) if f.endswith(f'_{task_type}_result.md')]
@@ -351,7 +357,8 @@ async def perform_ocr_task(file: UploadFile, task_type: str) -> TaskResponse:
                 task_type=task_type,
                 content=content,
                 message=f"{task_type.capitalize()} extraction completed successfully",
-                config=os.path.basename(os.environ["MONKEYOCR_CONFIG_FILE_PATH"])
+                config=os.path.basename(os.environ["MONKEYOCR_CONFIG_FILE_PATH"]),
+                inference_time_sec = inference_time
             )
             
         finally:
