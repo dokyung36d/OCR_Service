@@ -30,6 +30,8 @@ I refactored and restructured the codebase to fit a cloud-native architecture, f
 - Designed an **event-driven, scalable API gateway** using AWS ALB and Lambda
 - Automated daily logging with **Apache Airflow**
 - Managed asynchronous communication between Lambda and GPU backend
+- Implemented A/B testing using AWS ALB by routing traffic between multiple model versions
+- Integrate response time logging
 
 ## 📦 Tech Stack
 
@@ -41,11 +43,13 @@ I refactored and restructured the codebase to fit a cloud-native architecture, f
 
 ## 🔍 Future Improvements
 
-- Integrate response time logging and latency monitoring
-- Add support for multiple model versions and A/B testing
 - Automate deployment with CI/CD (e.g., GitHub Actions, Terraform)
 - Improve GPU resource management and job queuing for RunPod
 
 ---
+
+For model-specific configurations (e.g., weights, config files, and tokenizer settings), please refer to the original [MonkeyOCR repository](https://github.com/Yuliang-Liu/MonkeyOCR).  
+This project focuses on infrastructure and deployment, and assumes you have set up the OCR model according to the original repository.
+
 
 Feel free to explore the architecture and use it as a starting point for your own production-level AI inference service!
